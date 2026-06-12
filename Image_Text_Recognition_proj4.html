@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project 4 - Image & Text Recognition</title>
+  <!-- Pre-trained models -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#0a0f1e;font-family:'Segoe UI',sans-serif;color:#e2e8f0;min-height:100vh;}
+
+    header{background:linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a);border-bottom:1px solid #1e293b;padding:36px 20px;text-align:center;}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:#1e293b;border:1px solid #334155;border-radius:99px;padding:4px 14px;margin-bottom:14px;}
+    .dot{width:8px;height:8px;border-radius:50%;background:#6366f1;box-shadow:0 0 8px #6366f1;}
+    .badge span{font-size:11px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase;font-weight:600;}
+    h1{font-size:36px;font-weight:800;background:linear-gradient(135deg,#e2e8f0,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+    header p{color:#64748b;font-size:14px;}
+
+    .container{max-width:760px;margin:0 auto;padding:32px 20px;}
+
+    /* Tabs */
+    .tabs{display:flex;gap:12px;margin-bottom:28px;}
+    .tab{flex:1;padding:14px;border-radius:12px;border:1px solid #334155;background:#0f172a;color:#64748b;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;}
+    .tab.active{background:linear-gradient(135deg,#4338ca,#7c3aed);border-color:#6366f1;color:#fff;}
+
+    /* Panels */
+    .panel{display:none;}
+    .panel.active{display:block;}
+
+    .card{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:24px;margin-bottom:20px;}
+    .card-label{font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;}
+
+    /* Upload area */
+    .upload-area{border:2px dashed #334155;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+    .upload-area:hover{border-color:#6366f1;background:#1e1b4b22;}
+    .upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+    .upload-icon{font-size:40px;margin-bottom:10px;}
+    .upload-area p{color:#64748b;font-size:14px;}
+    .upload-area p span{color:#818cf8;font-weight:600;}
+
+    /* Preview */
+    #imgPreview, #ocrPreview{width:100%;max-height:280px;object-fit:contain;border-radius:10px;display:none;margin-bottom:16px;border:1px solid #1e293b;}
+
+    /* Run button */
+    .run-btn{width:100%;padding:15px;border-radius:12px;background:linear-gradient(135deg,#4338ca,#7c3aed);border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+    .run-btn:disabled{background:#1e293b;color:#334155;cursor:not-allowed;}
+    .run-btn:hover:not(:disabled){opacity:.9;}
+
+    /* Results */
+    .results-box{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:20px;margin-top:20px;display:none;}
+    .results-title{font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;}
+
+    /* Image result items */
+    .result-item{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+    .result-rank{font-family:monospace;font-size:11px;font-weight:800;background:#1e293b;border-radius:6px;padding:3px 8px;color:#f59e0b;min-width:28px;text-align:center;}
+    .result-info{flex:1;}
+    .result-name{font-size:14px;font-weight:600;color:#e2e8f0;margin-bottom:4px;text-transform:capitalize;}
+    .result-bar-wrap{display:flex;align-items:center;gap:8px;}
+    .result-bar-track{flex:1;height:5px;background:#1e293b;border-radius:99px;overflow:hidden;}
+    .result-bar-fill{height:100%;border-radius:99px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+    .result-pct{font-family:monospace;font-size:12px;font-weight:700;min-width:34px;}
+
+    /* OCR result */
+    .ocr-output{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;font-size:14px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;word-break:break-word;min-height:80px;}
+    .ocr-empty{color:#475569;font-style:italic;}
+
+    /* Loading */
+    .loader{text-align:center;padding:20px;}
+    .spinner{display:inline-block;width:32px;height:32px;border:3px solid #1e293b;border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loader p{color:#64748b;font-size:13px;margin-top:10px;}
+
+    /* Info box */
+    .info-box{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:18px 20px;margin-top:8px;}
+    .info-box .info-title{font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+    .info-box p{font-size:13px;color:#475569;line-height:1.7;}
+    .info-box span{color:#818cf8;}
+
+    .hint{font-size:12px;color:#475569;margin-top:8px;}
+    .success-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:6px;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge"><div class="dot"></div><span>DecodeLabs · Project 4 · Image & Text Recognition</span></div>
+  <h1>AI Recognition Engine</h1>
+  <p>Image Classification (MobileNet) + Text Recognition / OCR (Tesseract.js)</p>
+</header>
+
+<div class="container">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('image')">🖼️ Image Recognition</div>
+    <div class="tab" onclick="switchTab('text')">📝 Text Recognition (OCR)</div>
+  </div>
+
+  <!-- ── IMAGE RECOGNITION PANEL ── -->
+  <div class="panel active" id="panel-image">
+    <div class="card">
+      <div class="card-label">Upload an Image</div>
+      <img id="imgPreview" alt="preview"/>
+      <div class="upload-area" id="imgUploadArea">
+        <input type="file" accept="image/*" id="imgInput" onchange="loadImage(event)"/>
+        <div class="upload-icon">📸</div>
+        <p>Click to upload or drag & drop<br/><span>JPG, PNG, WEBP supported</span></p>
+      </div>
+      <p class="hint">Try: a photo of a dog, cat, car, flower, food, etc.</p>
+    </div>
+    <button class="run-btn" id="imgRunBtn" onclick="runImageRecognition()" disabled>Upload an image first</button>
+
+    <div class="results-box" id="imgResults">
+      <div class="results-title">🎯 Top Predictions (Pre-trained MobileNet Model)</div>
+      <div id="imgResultItems"></div>
+    </div>
+
+    <div class="info-box" style="margin-top:20px;">
+      <div class="info-title">How It Works</div>
+      <p>Uses <span>MobileNet</span> — a pre-trained deep learning model trained on 1000+ object categories. It analyzes pixel patterns and returns the top matches with confidence scores. No server needed — runs entirely in your browser.</p>
+    </div>
+  </div>
+
+  <!-- ── TEXT RECOGNITION PANEL ── -->
+  <div class="panel" id="panel-text">
+    <div class="card">
+      <div class="card-label">Upload an Image Containing Text</div>
+      <img id="ocrPreview" alt="preview"/>
+      <div class="upload-area" id="ocrUploadArea">
+        <input type="file" accept="image/*" id="ocrInput" onchange="loadOcrImage(event)"/>
+        <div class="upload-icon">📄</div>
+        <p>Click to upload or drag & drop<br/><span>Screenshot, photo of text, document, sign</span></p>
+      </div>
+      <p class="hint">Try: a screenshot of text, a photo of a book, a road sign, a handwritten note</p>
+    </div>
+    <button class="run-btn" id="ocrRunBtn" onclick="runOCR()" disabled>Upload an image first</button>
+
+    <div class="results-box" id="ocrResults">
+      <div class="results-title">📋 Extracted Text (Tesseract OCR Engine)</div>
+      <div id="ocrOutput" class="ocr-output"></div>
+      <div id="ocrConfidence" style="margin-top:10px;font-size:12px;color:#475569;"></div>
+    </div>
+
+    <div class="info-box" style="margin-top:20px;">
+      <div class="info-title">How It Works</div>
+      <p>Uses <span>Tesseract.js</span> — a port of Google's OCR engine. It scans the image pixel by pixel, detects character shapes, and reconstructs the text. Works on printed text, screenshots, signs, and even some handwriting.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='image')||(i===1&&tab==='text')));
+  document.getElementById('panel-image').classList.toggle('active', tab==='image');
+  document.getElementById('panel-text').classList.toggle('active', tab==='text');
+}
+
+// ── Image Recognition ─────────────────────────────────────────────────────────
+let imgFile = null;
+let mobileNetModel = null;
+
+function loadImage(e) {
+  imgFile = e.target.files[0];
+  if (!imgFile) return;
+  const preview = document.getElementById('imgPreview');
+  preview.src = URL.createObjectURL(imgFile);
+  preview.style.display = 'block';
+  document.getElementById('imgRunBtn').disabled = false;
+  document.getElementById('imgRunBtn').textContent = '▶ Run Image Recognition';
+  document.getElementById('imgResults').style.display = 'none';
+}
+
+async function runImageRecognition() {
+  const btn = document.getElementById('imgRunBtn');
+  const resultsBox = document.getElementById('imgResults');
+  const itemsEl = document.getElementById('imgResultItems');
+
+  btn.disabled = true;
+  btn.textContent = 'Loading model...';
+  resultsBox.style.display = 'block';
+  itemsEl.innerHTML = `<div class="loader"><div class="spinner"></div><p>Loading MobileNet pre-trained model...<br/>First time may take 10–20 seconds</p></div>`;
+
+  try {
+    if (!mobileNetModel) {
+      mobileNetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+    }
+
+    btn.textContent = 'Analyzing image...';
+    itemsEl.innerHTML = `<div class="loader"><div class="spinner"></div><p>Running AI classification...</p></div>`;
+
+    const imgEl = document.getElementById('imgPreview');
+    const predictions = await mobileNetModel.classify(imgEl, 5);
+
+    itemsEl.innerHTML = '';
+    const rankColors = ['#f59e0b','#94a3b8','#b87333','#6366f1','#6366f1'];
+
+    predictions.forEach((pred, i) => {
+      const pct = Math.round(pred.probability * 100);
+      const color = pct >= 60 ? '#22c55e' : pct >= 30 ? '#f59e0b' : '#6366f1';
+      const name = pred.className.split(',')[0];
+      itemsEl.innerHTML += `
+        <div class="result-item">
+          <span class="result-rank" style="color:${rankColors[i]}">#${i+1}</span>
+          <div class="result-info">
+            <div class="result-name">${name}</div>
+            <div class="result-bar-wrap">
+              <div class="result-bar-track"><div class="result-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+              <span class="result-pct" style="color:${color}">${pct}%</span>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    btn.disabled = false;
+    btn.textContent = '▶ Run Again';
+  } catch(err) {
+    itemsEl.innerHTML = `<p style="color:#f87171;font-size:14px;">Error: ${err.message}. Please try again.</p>`;
+    btn.disabled = false;
+    btn.textContent = '▶ Run Image Recognition';
+  }
+}
+
+// ── OCR / Text Recognition ────────────────────────────────────────────────────
+let ocrFile = null;
+
+function loadOcrImage(e) {
+  ocrFile = e.target.files[0];
+  if (!ocrFile) return;
+  const preview = document.getElementById('ocrPreview');
+  preview.src = URL.createObjectURL(ocrFile);
+  preview.style.display = 'block';
+  document.getElementById('ocrRunBtn').disabled = false;
+  document.getElementById('ocrRunBtn').textContent = '▶ Run Text Recognition (OCR)';
+  document.getElementById('ocrResults').style.display = 'none';
+}
+
+async function runOCR() {
+  const btn = document.getElementById('ocrRunBtn');
+  const resultsBox = document.getElementById('ocrResults');
+  const outputEl = document.getElementById('ocrOutput');
+  const confEl = document.getElementById('ocrConfidence');
+
+  btn.disabled = true;
+  btn.textContent = 'Running OCR...';
+  resultsBox.style.display = 'block';
+  outputEl.innerHTML = `<div class="loader"><div class="spinner"></div><p>Loading Tesseract OCR engine...<br/>Extracting text from image...</p></div>`;
+  confEl.textContent = '';
+
+  try {
+    const { data } = await Tesseract.recognize(
+      document.getElementById('ocrPreview').src,
+      'eng',
+      { logger: m => {
+        if (m.status === 'recognizing text') {
+          outputEl.innerHTML = `<div class="loader"><div class="spinner"></div><p>Recognizing text... ${Math.round(m.progress*100)}%</p></div>`;
+        }
+      }}
+    );
+
+    const text = data.text.trim();
+    const conf = Math.round(data.confidence);
+
+    if (text.length === 0) {
+      outputEl.innerHTML = `<span class="ocr-empty">No text detected. Try a clearer image with printed text.</span>`;
+    } else {
+      outputEl.textContent = text;
+    }
+
+    const confColor = conf >= 70 ? '#22c55e' : conf >= 40 ? '#f59e0b' : '#f87171';
+    confEl.innerHTML = `<span class="success-dot" style="background:${confColor}"></span>OCR Confidence: <strong style="color:${confColor}">${conf}%</strong> · Characters detected: <strong style="color:#818cf8">${text.length}</strong>`;
+
+    btn.disabled = false;
+    btn.textContent = '▶ Run Again';
+  } catch(err) {
+    outputEl.innerHTML = `<span style="color:#f87171">Error: ${err.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = '▶ Run Text Recognition (OCR)';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tech Stack Recommender</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0f1e; font-family: 'Segoe UI', sans-serif; color: #e2e8f0; min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #0f172a, #1e1b4b, #0f172a);
+      border-bottom: 1px solid #1e293b;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 99px; padding: 4px 14px; margin-bottom: 16px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; box-shadow: 0 0 8px #6366f1; }
+    .badge span { font-size: 11px; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+    h1 { font-size: 40px; font-weight: 800; background: linear-gradient(135deg, #e2e8f0, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+    header p { color: #64748b; font-size: 15px; }
+
+    .container { max-width: 680px; margin: 0 auto; padding: 36px 20px; }
+
+    .card {
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+    }
+    label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+
+    #tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 10px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1e1b4b; border: 1px solid #4338ca;
+      border-radius: 99px; padding: 5px 12px; font-size: 13px; color: #a5b4fc;
+    }
+    .tag button { background: none; border: none; color: #6366f1; cursor: pointer; font-size: 16px; line-height: 1; }
+
+    #skillInput {
+      width: 100%; background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 12px 16px; font-size: 15px;
+      color: #e2e8f0; outline: none; transition: border-color 0.2s;
+    }
+    #skillInput:focus { border-color: #6366f1; }
+    .hint { font-size: 12px; color: #475569; margin-top: 8px; }
+
+    .quick-label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    #quickAdd { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .quick-btn {
+      background: #0f172a; border: 1px solid #334155; border-radius: 99px;
+      padding: 5px 12px; font-size: 12px; color: #64748b; cursor: pointer; transition: all 0.15s;
+    }
+    .quick-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+
+    .topn-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .topn-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .topn-btn {
+      width: 40px; height: 40px; border-radius: 10px; background: #0f172a;
+      border: 1px solid #334155; color: #64748b; font-weight: 700;
+      cursor: pointer; font-size: 14px; transition: all 0.15s;
+    }
+    .topn-btn.active { background: #4338ca; border-color: #6366f1; color: #fff; }
+
+    #runBtn {
+      width: 100%; padding: 16px; border-radius: 12px;
+      background: linear-gradient(135deg, #4338ca, #7c3aed);
+      border: none; color: #fff; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s; letter-spacing: 0.02em;
+    }
+    #runBtn:disabled { background: #1e293b; color: #334155; cursor: not-allowed; }
+    #runBtn:hover:not(:disabled) { opacity: 0.9; }
+
+    #results { display: none; }
+
+    .skills-used { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+    .skills-used p { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    .skills-used .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .used-tag { background: #1e1b4b; border: 1px solid #4338ca; border-radius: 99px; padding: 4px 12px; font-size: 13px; color: #a5b4fc; }
+
+    .section-label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+
+    .result-card {
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 14px; padding: 22px; margin-bottom: 14px; position: relative; overflow: hidden;
+    }
+    .result-card.top { border-color: #4338ca; }
+    .top-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #6366f1, #7c3aed, #818cf8); }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .card-title { display: flex; align-items: center; gap: 10px; }
+    .rank { font-family: monospace; font-size: 12px; font-weight: 800; background: #1e293b; border-radius: 6px; padding: 3px 8px; }
+    .card-title h3 { font-size: 17px; font-weight: 700; color: #e2e8f0; }
+    .best-badge { font-size: 11px; background: #1e1b4b; border: 1px solid #4338ca; border-radius: 99px; padding: 3px 10px; color: #818cf8; font-weight: 600; }
+
+    .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .score-track { flex: 1; height: 6px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+    .score-val { font-family: monospace; font-size: 13px; font-weight: 700; min-width: 36px; }
+
+    .chip-section p { font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .chip-section { margin-top: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip-green { font-size: 11px; background: #052e16; border: 1px solid #166534; border-radius: 99px; padding: 3px 10px; color: #4ade80; }
+    .chip-grey { font-size: 11px; background: #1e293b; border: 1px solid #334155; border-radius: 99px; padding: 3px 10px; color: #64748b; }
+
+    .info-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 18px 20px; margin-top: 8px; }
+    .info-box p:first-child { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .info-box p:last-child { font-size: 13px; color: #475569; line-height: 1.7; }
+    .info-box span { color: #818cf8; }
+
+    #resetBtn {
+      width: 100%; margin-top: 20px; padding: 14px; border-radius: 12px;
+      background: none; border: 1px solid #334155; color: #64748b;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    #resetBtn:hover { border-color: #6366f1; color: #a5b4fc; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge"><div class="dot"></div><span>DecodeLabs · Project 3 · AI Recommendation Logic</span></div>
+  <h1>Tech Stack Recommender</h1>
+  <p>Content-based filtering via TF-IDF weighting + Cosine Similarity</p>
+</header>
+
+<div class="container">
+
+  <!-- Input Section -->
+  <div id="inputSection">
+    <div class="card">
+      <label>Your Skills</label>
+      <div id="tags"></div>
+      <input id="skillInput" type="text" placeholder='Type a skill and press Enter (e.g. "Python")' />
+      <p class="hint">Minimum 3 skills required · Press Enter or comma to add</p>
+    </div>
+
+    <p class="quick-label">Quick Add</p>
+    <div id="quickAdd"></div>
+
+    <div class="topn-row">
+      <span class="topn-label">Top Results</span>
+      <button class="topn-btn active" onclick="setTopN(3, this)">3</button>
+      <button class="topn-btn" onclick="setTopN(4, this)">4</button>
+      <button class="topn-btn" onclick="setTopN(5, this)">5</button>
+    </div>
+
+    <button id="runBtn" onclick="runRecommender()" disabled>Add 3 more skills to continue</button>
+  </div>
+
+  <!-- Results Section -->
+  <div id="results">
+    <div class="skills-used">
+      <p>Skills Analyzed</p>
+      <div class="tags" id="usedTags"></div>
+    </div>
+    <p class="section-label" id="resultsLabel">Top Matches</p>
+    <div id="resultCards"></div>
+    <div class="info-box">
+      <p>How This Works</p>
+      <p>Your skills are vectorized using <span>TF-IDF weighting</span> to penalize common terms and reward specific ones. Each job role is also a weighted vector. <span>Cosine Similarity</span> measures the angular alignment between your vector and each role's vector — magnitude-invariant, so profile size doesn't bias results.</p>
+    </div>
+    <button id="resetBtn" onclick="resetApp()">← Try Different Skills</button>
+  </div>
+
+</div>
+
+<script>
+// ── Dataset ──────────────────────────────────────────────────────────────────
+const JOB_ROLES = [
+  { title: "Data Scientist", skills: ["python","machine learning","sql","statistics","pandas","numpy","data analysis","tensorflow","jupyter","visualization"] },
+  { title: "Machine Learning Engineer", skills: ["python","tensorflow","pytorch","machine learning","deep learning","algorithms","numpy","docker","apis","optimization"] },
+  { title: "Backend Developer", skills: ["java","python","sql","apis","node","databases","docker","git","rest","microservices"] },
+  { title: "Frontend Developer", skills: ["javascript","react","html","css","typescript","git","figma","ux","web design","apis"] },
+  { title: "Full Stack Developer", skills: ["javascript","react","node","python","sql","html","css","git","apis","docker"] },
+  { title: "DevOps Engineer", skills: ["docker","kubernetes","aws","linux","git","ci/cd","bash","terraform","ansible","monitoring"] },
+  { title: "Cloud Architect", skills: ["aws","azure","gcp","cloud","kubernetes","docker","networking","security","terraform","automation"] },
+  { title: "Data Engineer", skills: ["python","sql","spark","airflow","databases","etl","kafka","data pipelines","cloud","aws"] },
+  { title: "Cybersecurity Analyst", skills: ["networking","security","linux","python","firewalls","encryption","ethical hacking","risk assessment","monitoring","bash"] },
+  { title: "AI Research Scientist", skills: ["python","machine learning","deep learning","mathematics","statistics","tensorflow","pytorch","research","algorithms","optimization"] },
+  { title: "Mobile Developer", skills: ["swift","kotlin","react","javascript","apis","git","ux","databases","android","ios"] },
+  { title: "Database Administrator", skills: ["sql","databases","oracle","mongodb","postgres","backup","performance tuning","linux","security","cloud"] },
+  { title: "Systems Administrator", skills: ["linux","windows","networking","bash","security","monitoring","virtualization","docker","automation","powershell"] },
+  { title: "Blockchain Developer", skills: ["solidity","web3","javascript","python","cryptography","smart contracts","ethereum","apis","security","git"] },
+  { title: "UI/UX Designer", skills: ["figma","ux","web design","html","css","javascript","prototyping","user research","typography","accessibility"] },
+];
+
+const QUICK_SKILLS = ["Python","JavaScript","Java","SQL","React","Docker","AWS","Machine Learning","TensorFlow","Linux","Git","Kubernetes"];
+const rankColors = ["#f59e0b","#94a3b8","#b87333","#6366f1","#6366f1"];
+
+let skills = [];
+let topN = 3;
+
+// ── Init Quick Add ────────────────────────────────────────────────────────────
+function renderQuickAdd() {
+  const el = document.getElementById("quickAdd");
+  el.innerHTML = "";
+  QUICK_SKILLS.filter(s => !skills.includes(s)).forEach(s => {
+    const btn = document.createElement("button");
+    btn.className = "quick-btn";
+    btn.textContent = "+ " + s;
+    btn.onclick = () => addSkill(s);
+    el.appendChild(btn);
+  });
+}
+
+// ── Skills management ─────────────────────────────────────────────────────────
+function addSkill(skill) {
+  const clean = skill.trim();
+  if (!clean || skills.includes(clean.toLowerCase())) return;
+  skills.push(clean);
+  renderTags();
+  renderQuickAdd();
+  updateBtn();
+  document.getElementById("skillInput").value = "";
+}
+
+function removeSkill(skill) {
+  skills = skills.filter(s => s !== skill);
+  renderTags();
+  renderQuickAdd();
+  updateBtn();
+}
+
+function renderTags() {
+  const el = document.getElementById("tags");
+  el.innerHTML = "";
+  skills.forEach(s => {
+    const span = document.createElement("span");
+    span.className = "tag";
+    span.innerHTML = `${s} <button onclick="removeSkill('${s}')">×</button>`;
+    el.appendChild(span);
+  });
+}
+
+function updateBtn() {
+  const btn = document.getElementById("runBtn");
+  const need = Math.max(0, 3 - skills.length);
+  if (need === 0) {
+    btn.disabled = false;
+    btn.textContent = "▶ Run Recommendation Engine";
+  } else {
+    btn.disabled = true;
+    btn.textContent = `Add ${need} more skill${need > 1 ? "s" : ""} to continue`;
+  }
+}
+
+function setTopN(n, el) {
+  topN = n;
+  document.querySelectorAll(".topn-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+}
+
+// Input listener
+document.getElementById("skillInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter" || e.key === ",") {
+    e.preventDefault();
+    if (this.value.trim()) addSkill(this.value);
+  }
+});
+
+// ── TF-IDF + Cosine Similarity ────────────────────────────────────────────────
+function buildVocabulary(roles) {
+  const vocab = new Set();
+  roles.forEach(r => r.skills.forEach(s => vocab.add(s.toLowerCase())));
+  return Array.from(vocab).sort();
+}
+
+function computeIDF(vocab, roles) {
+  const idf = {}, N = roles.length;
+  vocab.forEach(term => {
+    const count = roles.filter(r => r.skills.map(s => s.toLowerCase()).includes(term)).length;
+    idf[term] = Math.log((N + 1) / (count + 1)) + 1;
+  });
+  return idf;
+}
+
+function buildVector(skillList, vocab, idf) {
+  const lower = skillList.map(s => s.toLowerCase().trim());
+  const counts = {};
+  lower.forEach(s => counts[s] = (counts[s] || 0) + 1);
+  const total = lower.length;
+  return vocab.map(term => ((counts[term] || 0) / total) * (idf[term] || 0));
+}
+
+function cosineSim(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; na += a[i]**2; nb += b[i]**2; }
+  return (na === 0 || nb === 0) ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function getRecommendations() {
+  const vocab = buildVocabulary(JOB_ROLES);
+  const idf = computeIDF(vocab, JOB_ROLES);
+  const userVec = buildVector(skills, vocab, idf);
+  return JOB_ROLES.map(role => ({
+    ...role,
+    score: cosineSim(userVec, buildVector(role.skills, vocab, idf)),
+    matched: role.skills.filter(s => skills.map(u => u.toLowerCase()).includes(s.toLowerCase())),
+    missing: role.skills.filter(s => !skills.map(u => u.toLowerCase()).includes(s.toLowerCase())),
+  })).sort((a, b) => b.score - a.score).slice(0, topN);
+}
+
+// ── Run ───────────────────────────────────────────────────────────────────────
+function runRecommender() {
+  const results = getRecommendations();
+
+  // Show used skills
+  const usedTags = document.getElementById("usedTags");
+  usedTags.innerHTML = skills.map(s => `<span class="used-tag">${s}</span>`).join("");
+
+  // Label
+  document.getElementById("resultsLabel").textContent = `Top ${topN} Career Matches`;
+
+  // Cards
+  const cardsEl = document.getElementById("resultCards");
+  cardsEl.innerHTML = "";
+  results.forEach((role, i) => {
+    const pct = Math.round(role.score * 100);
+    const color = pct >= 60 ? "#22c55e" : pct >= 35 ? "#f59e0b" : "#6366f1";
+    const card = document.createElement("div");
+    card.className = "result-card" + (i === 0 ? " top" : "");
+    card.innerHTML = `
+      ${i === 0 ? '<div class="top-bar"></div>' : ""}
+      <div class="card-header">
+        <div class="card-title">
+          <span class="rank" style="color:${rankColors[i]}">#${i+1}</span>
+          <h3>${role.title}</h3>
+        </div>
+        ${i === 0 ? '<span class="best-badge">BEST MATCH</span>' : ""}
+      </div>
+      <div class="score-row">
+        <div class="score-track"><div class="score-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="score-val" style="color:${color}">${pct}%</span>
+      </div>
+      ${role.matched.length > 0 ? `
+      <div class="chip-section">
+        <p>Matched Skills ✅</p>
+        <div class="chips">${role.matched.map(s => `<span class="chip-green">${s}</span>`).join("")}</div>
+      </div>` : ""}
+      <div class="chip-section">
+        <p>Skills to Learn 📚</p>
+        <div class="chips">${role.missing.map(s => `<span class="chip-grey">${s}</span>`).join("")}</div>
+      </div>
+    `;
+    cardsEl.appendChild(card);
+  });
+
+  // Switch views
+  document.getElementById("inputSection").style.display = "none";
+  document.getElementById("results").style.display = "block";
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetApp() {
+  skills = [];
+  renderTags();
+  renderQuickAdd();
+  updateBtn();
+  document.getElementById("inputSection").style.display = "block";
+  document.getElementById("results").style.display = "none";
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+renderQuickAdd();
+</script>
+</body>
+</html>
